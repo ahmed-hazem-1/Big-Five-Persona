@@ -50,10 +50,10 @@ export function Assessment() {
       <TopNav>
         <div className="hidden sm:flex flex-col items-center w-full max-w-xs mx-auto mt-2">
            <div className="w-full h-1.5 bg-slate-200/80 rounded-full flex overflow-hidden" dir="ltr">
-              <div 
-                className="h-full bg-blue-900 rounded-full transition-all duration-500 ease-out"
-                style={{ width: `${progress}%` }}
-              ></div>
+               <div 
+                 className="h-full bg-blue-900 rounded-full transition-all duration-500 ease-out"
+                 style={{ width: `${progress}%` }}
+               ></div>
            </div>
         </div>
       </TopNav>

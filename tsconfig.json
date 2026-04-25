@@ -1,6 +1,9 @@
 {
   "compilerOptions": {
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
     "target": "ES2022",
+    "types": ["vite/client"],
     "experimentalDecorators": true,
     "useDefineForClassFields": false,
     "module": "ESNext",
