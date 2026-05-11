@@ -129,7 +129,7 @@ export function Results() {
   };
 
   const tabs = [
-    { id: 'user', label: 'Your Profile', icon: Fingerprint },
+    { id: 'user', label: 'Your Profile', icon: Fingerprint, disabled: false },
     { id: 'kmeans', label: 'K-Means Persona', icon: Users, disabled: !predictions?.predictions.kmeans },
     { id: 'gmm', label: 'GMM Persona', icon: BrainCircuit, disabled: !predictions?.predictions.gmm },
     { id: 'hierarchical', label: 'Hierarchical Persona', icon: BarChart3, disabled: !predictions?.predictions.hierarchical },
