@@ -12,6 +12,12 @@ export function Assessment() {
   const t = getTranslation(language);
   
   const question = questions[currentQuestionIndex];
+  
+  // Guard against fast double-clicks incrementing past the array bounds
+  if (!question) {
+    return null;
+  }
+
   const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
   const currentAnswer = answers[question.id];
 

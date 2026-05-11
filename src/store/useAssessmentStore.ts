@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { questions } from '../data/questions';
 
 export interface Answer {
   questionId: number;
@@ -39,7 +40,7 @@ export const useAssessmentStore = create<AssessmentState>()(
 
       nextQuestion: () => 
         set((state) => ({
-          currentQuestionIndex: state.currentQuestionIndex + 1
+          currentQuestionIndex: Math.min(state.currentQuestionIndex + 1, questions.length - 1)
         })),
 
       prevQuestion: () => 
