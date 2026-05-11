@@ -47,7 +47,10 @@ export function Results() {
   useEffect(() => {
     const fetchPredictions = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_MODELS_API_URL || ''}/predict`, {
+        const apiUrl = import.meta.env.VITE_MODELS_API_URL || '';
+        const endpoint = `${apiUrl.replace(/\/$/, '')}/predict`;
+        
+        const response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ answers }),
