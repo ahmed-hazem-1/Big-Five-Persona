@@ -8,17 +8,7 @@ import numpy as np
 import os
 import json
 from fastapi.middleware.cors import CORSMiddleware
-
-app = FastAPI(title="Big Five Persona API")
-
-# Enable CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+from contextlib import asynccontextmanager
 
 # Constants
 API_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -37,39 +27,8 @@ models = {}
 preprocessors = {}
 cluster_profiles_data = {}
 
-class PredictionRequest(BaseModel):
-    answers: dict # Map of question ID (str) to score (int 1-5)
-
-def load_questions():
-    return pd.read_csv(QUESTIONS_CSV)
-
-def calculate_scores(answers: dict, questions_df: pd.DataFrame):
-    # Map answers to traits
-    trait_map = {
-        'EXT': [], 'EST': [], 'AGR': [], 'CSN': [], 'OPN': []
-    }
-    
-    for _, q in questions_df.iterrows():
-        q_id = str(q['id'])
-        if q_id in answers:
-            val = answers[q_id]
-            # Reverse score if needed
-            if q['reverse'] == 1:
-                val = 6 - val
-            trait_map[q['trait']].append(val)
-            
-    # Calculate means
-    scores = {
-        'EXT_score': np.mean(trait_map['EXT']) if trait_map['EXT'] else 0,
-        'EST_score': np.mean(trait_map['EST']) if trait_map['EST'] else 0,
-        'AGR_score': np.mean(trait_map['AGR']) if trait_map['AGR'] else 0,
-        'CSN_score': np.mean(trait_map['CSN']) if trait_map['CSN'] else 0,
-        'OPN_score': np.mean(trait_map['OPN']) if trait_map['OPN'] else 0,
-    }
-    return scores
-
-@app.on_event("startup")
-def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     # Load Cluster Profiles
     profiles_path = os.path.join(MODEL_DIR, "cluster_profiles.json")
     if os.path.exists(profiles_path):
@@ -102,6 +61,53 @@ def startup_event():
             models['hierarchical'] = joblib.load(knn_path)
     except Exception as e:
         print(f"Error loading Hierarchical: {e}")
+    
+    yield
+    # Clean up if needed
+    models.clear()
+    preprocessors.clear()
+
+app = FastAPI(title="Big Five Persona API", lifespan=lifespan)
+
+# Enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+class PredictionRequest(BaseModel):
+    answers: dict # Map of question ID (str) to score (int 1-5)
+
+def load_questions():
+    return pd.read_csv(QUESTIONS_CSV)
+
+def calculate_scores(answers: dict, questions_df: pd.DataFrame):
+    # Map answers to traits
+    trait_map = {
+        'EXT': [], 'EST': [], 'AGR': [], 'CSN': [], 'OPN': []
+    }
+    
+    for _, q in questions_df.iterrows():
+        q_id = str(q['id'])
+        if q_id in answers:
+            val = answers[q_id]
+            # Reverse score if needed
+            if q['reverse'] == 1:
+                val = 6 - val
+            trait_map[q['trait']].append(val)
+            
+    # Calculate means
+    scores = {
+        'EXT_score': np.mean(trait_map['EXT']) if trait_map['EXT'] else 0,
+        'EST_score': np.mean(trait_map['EST']) if trait_map['EST'] else 0,
+        'AGR_score': np.mean(trait_map['AGR']) if trait_map['AGR'] else 0,
+        'CSN_score': np.mean(trait_map['CSN']) if trait_map['CSN'] else 0,
+        'OPN_score': np.mean(trait_map['OPN']) if trait_map['OPN'] else 0,
+    }
+    return scores
 
 @app.get("/health")
 def health():
