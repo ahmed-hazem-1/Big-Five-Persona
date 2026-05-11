@@ -1,0 +1,179 @@
+import { readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { parse } from 'csv-parse/sync';
+
+type GeneratedQuestion = {
+  id: number;
+  trait: 'O' | 'C' | 'E' | 'A' | 'N';
+  key: 1 | -1;
+  code?: string;
+  text: Record<string, string>;
+};
+
+function normalizeLangKey(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return trimmed;
+
+  const parts = trimmed.replace(/_/g, '-').split('-').filter(Boolean);
+  if (parts.length === 0) return trimmed;
+
+  const language = parts[0].toLowerCase();
+  const region = parts[1] ? parts[1].toUpperCase() : undefined;
+  const rest = parts.slice(2);
+
+  return [language, region, ...rest].filter(Boolean).join('-');
+}
+
+function mapTrait(trait: string): GeneratedQuestion['trait'] {
+  switch (trait) {
+    case 'OPN':
+      return 'O';
+    case 'CSN':
+      return 'C';
+    case 'EXT':
+      return 'E';
+    case 'AGR':
+      return 'A';
+    case 'EST':
+      // Kept as 'N' to match the app's OCEAN trait keys
+      return 'N';
+    default:
+      throw new Error(`Unknown trait code: ${trait}`);
+  }
+}
+
+type SupportedLanguage = 'en' | 'ar' | 'ar-EG';
+
+function resolveCsvPath(lang: SupportedLanguage): string {
+  const envMap: Record<SupportedLanguage, string | undefined> = {
+    en: process.env.QUESTIONS_CSV_EN ?? process.env.QUESTIONS_CSV_PATH,
+    ar: process.env.QUESTIONS_CSV_AR,
+    'ar-EG': process.env.QUESTIONS_CSV_AR_EG,
+  };
+
+  const defaultMap: Record<SupportedLanguage, string> = {
+    en: 'questions.csv',
+    ar: 'questions.ar.csv',
+    'ar-EG': 'questions.ar-EG.csv',
+  };
+
+  const candidate = envMap[lang] || defaultMap[lang];
+  return path.isAbsolute(candidate) ? candidate : path.resolve(process.cwd(), candidate);
+}
+
+function pickTextValue(record: Record<string, string>, lang: SupportedLanguage): string {
+  // Prefer explicit "text" column for per-language files.
+  const direct = String(record.text ?? '').trim();
+  if (direct) return direct;
+
+  // Otherwise accept the existing pattern "text_en" etc.
+  const preferredKey = `text_${lang}`;
+  const preferred = String(record[preferredKey] ?? '').trim();
+  if (preferred) return preferred;
+
+  // Back-compat: the current repo uses "text_en".
+  const en = String(record.text_en ?? '').trim();
+  if (lang === 'en' && en) return en;
+
+  // Finally, accept any column that looks like text_*
+  for (const [k, v] of Object.entries(record)) {
+    if (!k.startsWith('text_')) continue;
+    const val = String(v ?? '').trim();
+    if (val) return val;
+  }
+
+  return '';
+}
+
+async function readCsvRecords(csvPath: string): Promise<Array<Record<string, string>>> {
+  const csvContent = await readFile(csvPath, 'utf8');
+  return parse(csvContent, {
+    columns: true,
+    skip_empty_lines: true,
+    trim: true,
+  });
+}
+
+async function main() {
+  const enCsvPath = resolveCsvPath('en');
+  const arCsvPath = resolveCsvPath('ar');
+  const arEgCsvPath = resolveCsvPath('ar-EG');
+  const outPath = path.resolve(process.cwd(), 'src/data/questions.generated.ts');
+
+  const enRecords = await readCsvRecords(enCsvPath);
+
+  let arRecords: Array<Record<string, string>> = [];
+  let arEgRecords: Array<Record<string, string>> = [];
+
+  try {
+    arRecords = await readCsvRecords(arCsvPath);
+  } catch (e: any) {
+    if (e?.code !== 'ENOENT') throw e;
+  }
+  try {
+    arEgRecords = await readCsvRecords(arEgCsvPath);
+  } catch (e: any) {
+    if (e?.code !== 'ENOENT') throw e;
+  }
+
+  const byId: Map<number, GeneratedQuestion> = new Map();
+  for (const r of enRecords) {
+    if (String(r.id ?? '').trim() === '') continue;
+
+    const id = Number(r.id);
+    if (!Number.isFinite(id)) throw new Error(`Invalid id: ${r.id}`);
+
+    const trait = mapTrait(String(r.trait).trim());
+    const reverse = Number(String(r.reverse ?? '0').trim()) === 1;
+    const key: 1 | -1 = reverse ? -1 : 1;
+
+    const code = String(r.code ?? '').trim();
+    const enText = pickTextValue(r, 'en');
+    if (!enText) throw new Error(`Missing English text for question id=${id}`);
+
+    byId.set(id, {
+      id,
+      trait,
+      key,
+      ...(code ? { code } : {}),
+      text: { en: enText },
+    });
+  }
+
+  const mergeLang = (records: Array<Record<string, string>>, lang: SupportedLanguage) => {
+    for (const r of records) {
+      if (String(r.id ?? '').trim() === '') continue;
+      const id = Number(r.id);
+      if (!Number.isFinite(id)) continue;
+
+      const question = byId.get(id);
+      if (!question) continue;
+
+      const val = pickTextValue(r, lang);
+      if (val) question.text[normalizeLangKey(lang)] = val;
+    }
+  };
+
+  mergeLang(arRecords, 'ar');
+  mergeLang(arEgRecords, 'ar-EG');
+
+  const questions = Array.from(byId.values()).sort((a, b) => a.id - b.id);
+
+  const sources = [enCsvPath, arCsvPath, arEgCsvPath]
+    .map((p) => p.replace(/\\/g, '/'))
+    .join(', ');
+
+  const banner = `// This file is auto-generated by scripts/generate-questions.ts\n// Sources: ${sources}\n// Do not edit manually.\n\n`;
+  const body = `export const questions = ${JSON.stringify(questions, null, 2)} as const;\n`;
+  const content = banner + body;
+
+  await writeFile(outPath, content, 'utf8');
+  // eslint-disable-next-line no-console
+  console.log(`Generated ${questions.length} questions -> ${outPath}`);
+}
+
+main().catch((err) => {
+  // eslint-disable-next-line no-console
+  console.error(err);
+  process.exitCode = 1;
+});

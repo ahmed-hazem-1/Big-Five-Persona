@@ -4,10 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "generate:questions": "tsx scripts/generate-questions.ts",
+    "predev": "npm run generate:questions",
     "dev": "vite --port=3000 --host=0.0.0.0",
+    "prebuild": "npm run generate:questions",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
+    "prelint": "npm run generate:questions",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
@@ -39,6 +43,7 @@
     "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.4.21",
     "tailwindcss": "^4.1.14",
+    "csv-parse": "^5.6.0",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"

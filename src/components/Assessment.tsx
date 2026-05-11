@@ -68,9 +68,9 @@ export function Assessment() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: dir === 'rtl' ? 20 : -20 }}
                 transition={{ duration: 0.3 }}
-                className="text-xl sm:text-2xl md:text-3xl font-semibold leading-relaxed sm:leading-snug text-slate-800 tracking-tight"
+                className="text-2xl sm:text-3xl md:text-4xl font-bold leading-relaxed sm:leading-snug text-slate-800 tracking-tight"
               >
-                "{translatedQuestionText}"
+                {translatedQuestionText}
               </motion.h1>
             </AnimatePresence>
           </div>

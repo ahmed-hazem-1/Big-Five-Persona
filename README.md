@@ -1,3 +1,27 @@
+## Questions (CSV)
+
+The assessment questions are generated at build time from CSV files.
+
+- English: `questions.csv`
+- Arabic: `questions.ar.csv`
+- Egyptian Arabic: `questions.ar-EG.csv`
+
+Each CSV uses the same rows/ids and metadata (`id`, `trait`, `reverse`, ...). The only field that differs per language is the `text` column.
+
+When the user changes the website language, the UI uses `question.text[language]` if present, otherwise it falls back to `question.text.en`.
+
+### Generate
+
+The generator runs automatically before `dev`, `build`, and `lint`, or you can run it manually:
+
+- `npm run generate:questions`
+
+Optional overrides (absolute or relative paths):
+
+- `QUESTIONS_CSV_EN` (defaults to `questions.csv`)
+- `QUESTIONS_CSV_AR` (defaults to `questions.ar.csv`)
+- `QUESTIONS_CSV_AR_EG` (defaults to `questions.ar-EG.csv`)
+
 <div align="center">
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
