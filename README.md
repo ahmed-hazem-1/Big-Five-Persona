@@ -1,3 +1,12 @@
+---
+title: Big Five Persona
+emoji: 🧠
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+---
+
 ## Questions (CSV)
 
 The assessment questions are generated at build time from CSV files.
